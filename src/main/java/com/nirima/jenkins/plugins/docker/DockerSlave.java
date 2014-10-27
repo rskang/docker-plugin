@@ -112,27 +112,29 @@ public class DockerSlave extends AbstractCloudSlave {
 
     private void slaveShutdown(TaskListener listener) throws DockerException, IOException {
 
-        // The slave has stopped. Should we commit / tag / push ?
-
-        if(!getJobProperty().tagOnCompletion) {
+        // The slave has stopped. Should we commit / tag / push ?       
+        if(!getJobProperty().isTagOnCompletion() && !getJobProperty().isTagOnFailure()) {
             addJenkinsAction(null);
             return;
         }
 
+        String repoName = theRun.getParent().getDisplayName();
+        String tagName = theRun.getResult().toString() + "_" + theRun.getDisplayName();
+        
+        LOGGER.log(Level.INFO, "Going to tag the image locally - REPOSITORY: " + repoName + ". TAG: " + tagName);
         DockerClient client = getClient();
 
-
-         // Commit
+        // Commit
         String tag_image = client.container(containerId).createCommitCommand()
-                    .repo(theRun.getParent().getDisplayName())
-                    .tag(theRun.getDisplayName())
+                    .repo(repoName)
+                    .tag(tagName)
                     .author("Jenkins")
                     .execute();
 
         // Tag it with the jenkins name
         addJenkinsAction(tag_image);
 
-        // SHould we add additional tags?
+        // Should we add additional tags?
         try
         {
             String tagToken = getAdditionalTag(listener);
@@ -233,7 +235,7 @@ public class DockerSlave extends AbstractCloudSlave {
             // Don't care.
         }
         // Safe default
-        return new DockerJobProperty(false,null,false, true);
+        return new DockerJobProperty(false,false,null,false, true);
     }
 
     @Extension

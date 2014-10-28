@@ -17,13 +17,20 @@ import java.io.Serializable;
 public class DockerBuildAction implements Action, Serializable, Cloneable, Describable<DockerBuildAction> {
 
     public final String containerHost;
+    public final String containerName;
     public final String containerId;
-
+    public final String taggedName;
     public final String taggedId;
 
-    public DockerBuildAction(String containerHost, String containerId, String taggedId) {
+    public DockerBuildAction(String containerHost, 
+                             String containerName, 
+                             String containerId,
+                             String taggedName,
+                             String taggedId) {
         this.containerHost = containerHost;
+        this.containerName = containerName;
         this.containerId = containerId;
+        this.taggedName = taggedName;
         this.taggedId = taggedId;
     }
 

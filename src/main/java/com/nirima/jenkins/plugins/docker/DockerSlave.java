@@ -117,7 +117,7 @@ public class DockerSlave extends AbstractCloudSlave {
         // The slave has stopped. Should we commit / tag / push ?       
         if(!getJobProperty().isTagOnCompletion() && 
            !getJobProperty().isTagOnFailure()) {
-            addJenkinsAction(null, null);
+            addJenkinsAction(null);
             return;
         }
 
@@ -126,7 +126,7 @@ public class DockerSlave extends AbstractCloudSlave {
         if (!getJobProperty().isTagOnCompletion() &&
             (getJobProperty().isTagOnFailure() && theRun.getResult() == Result.SUCCESS)) {
             LOGGER.log(Level.INFO, "No need to tag the image as the build was SUCCESSFUL.");
-            addJenkinsAction(null, null);
+            addJenkinsAction(null);
             return;
         }
 
@@ -147,7 +147,7 @@ public class DockerSlave extends AbstractCloudSlave {
                     .execute();
 
         // Tag it with the jenkins name
-        addJenkinsAction(taggedId, taggedName);
+        addJenkinsAction(taggedId);
 
         // Should we add additional tags?
         try
@@ -156,7 +156,7 @@ public class DockerSlave extends AbstractCloudSlave {
 
             if( !Strings.isNullOrEmpty(tagToken) ) {
                 client.image(taggedId).tag(tagToken, false);
-                addJenkinsAction(tagToken, taggedName);
+                addJenkinsAction(tagToken);
 
                 if( getJobProperty().pushOnSuccess ) {
                     client.image(tagToken).push(null);
@@ -208,12 +208,8 @@ public class DockerSlave extends AbstractCloudSlave {
      * @param taggedId
      * @throws IOException
      */
-    private void addJenkinsAction(String taggedId, String taggedName) throws IOException {
-        theRun.addAction( new DockerBuildAction(getCloud().serverUrl, 
-                                                containerName,
-                                                containerId,
-                                                (taggedName == null ? "Image not tagged" : taggedName),
-                                                (taggedId == null ? "Image not tagged" : taggedId)) );
+    private void addJenkinsAction(String tag_image) throws IOException {
+        theRun.addAction( new DockerBuildAction(getCloud().serverUrl, containerId, tag_image, dockerTemplate.remoteFsMapping) );
         theRun.save();
     }
 
@@ -226,12 +222,6 @@ public class DockerSlave extends AbstractCloudSlave {
      */
     public void onConnected() {
 
-    }
-
-
-
-    public void retentionTerminate() throws IOException, InterruptedException {
-        terminate();
     }
 
     @Override

@@ -8,6 +8,7 @@ import com.google.common.collect.Collections2;
 import com.nirima.docker.client.DockerException;
 import com.nirima.docker.client.model.Container;
 import com.nirima.docker.client.model.ContainerInspectResponse;
+import com.nirima.docker.client.model.Identifier;
 import com.nirima.docker.client.model.ImageInspectResponse;
 import com.nirima.docker.client.model.Version;
 import com.nirima.docker.client.model.Image;
@@ -233,6 +234,14 @@ public class DockerCloud extends Cloud {
     }
 
     /**
+     * Remove a
+     * @param t
+     */
+    public void removeTemplate(DockerTemplate t) {
+        this.templates.remove(t);
+    }
+
+    /**
      * Counts the number of instances in Docker currently running that are using the specifed image.
      *
      * @param ami If AMI is left null, then all instances are counted.
@@ -252,7 +261,8 @@ public class DockerCloud extends Cloud {
 
         if (images.size() == 0) {
             LOGGER.log(Level.INFO, "Pulling image " + ami + " since one was not found.  This may take awhile...");
-            InputStream imageStream = dockerClient.createPullCommand().image(ami).withTag("latest").execute();
+            Identifier amiId = Identifier.fromCompoundString(ami);
+            InputStream imageStream = dockerClient.createPullCommand().image(amiId).execute();
             int streamValue = 0;
             while (streamValue != -1) {
                 streamValue = imageStream.read();

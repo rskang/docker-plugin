@@ -132,6 +132,8 @@ public class DockerSlave extends AbstractCloudSlave {
 
         String repoName = theRun.getParent().getDisplayName();
         String tagName = theRun.getResult().toString() + "_" + theRun.getDisplayName();
+        // Make sure we remove the # from the tagName
+        tagName = tagName.replace("#", "");
         String taggedName = repoName + ":" + tagName;
         
         LOGGER.log(Level.INFO, "Going to tag the image locally - REPOSITORY: " + repoName + ". TAG: " + tagName);

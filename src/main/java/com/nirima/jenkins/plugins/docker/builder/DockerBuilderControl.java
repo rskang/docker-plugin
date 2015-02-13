@@ -1,6 +1,7 @@
 package com.nirima.jenkins.plugins.docker.builder;
 
-import com.nirima.docker.client.DockerException;
+import com.github.dockerjava.api.DockerException;
+
 import hudson.DescriptorExtensionList;
 import hudson.Extension;
 import hudson.Launcher;
@@ -46,10 +47,8 @@ public class DockerBuilderControl extends Builder implements Serializable {
         }
 
         public static DescriptorExtensionList<DockerBuilderControlOption,DockerBuilderControlOptionDescriptor> getOptionList() {
-            return Jenkins.getInstance()
-                    .<DockerBuilderControlOption,DockerBuilderControlOptionDescriptor>getDescriptorList(DockerBuilderControlOption.class);
+            return DockerBuilderControlOptionDescriptor.all();
         }
-
     }
 
 

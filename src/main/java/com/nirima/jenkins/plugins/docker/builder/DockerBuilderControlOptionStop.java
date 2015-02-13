@@ -1,7 +1,9 @@
 package com.nirima.jenkins.plugins.docker.builder;
 
-import com.nirima.docker.client.DockerClient;
-import com.nirima.docker.client.DockerException;
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.DockerException;
+import com.github.dockerjava.api.NotModifiedException;
+
 import hudson.Extension;
 import hudson.model.AbstractBuild;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -11,22 +13,29 @@ import org.kohsuke.stapler.DataBoundConstructor;
  */
 public class DockerBuilderControlOptionStop extends DockerBuilderControlOptionStopStart {
 
+    public final boolean remove;
+
     @DataBoundConstructor
-    public DockerBuilderControlOptionStop(String cloudId, String containerId) {
-        super(cloudId, containerId);
+    public DockerBuilderControlOptionStop(String cloudName, String containerId, boolean remove) {
+        super(cloudName, containerId);
+        this.remove = remove;
     }
 
     @Override
     public void execute(AbstractBuild<?, ?> build) throws DockerException {
         LOGGER.info("Stopping container " + containerId);
         DockerClient client = getClient(build);
-        client.container(containerId).stop();
+        try {
+            client.stopContainerCmd(containerId).exec();
+        } catch(NotModifiedException ex) {
+            LOGGER.info("Already stopped.");
+        }
+
         getLaunchAction(build).stopped(client, containerId);
+        if( remove )
+            client.removeContainerCmd(containerId);
     }
 
-    public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl)super.getDescriptor();
-    }
 
     @Extension
     public static final class DescriptorImpl extends DockerBuilderControlOptionDescriptor {

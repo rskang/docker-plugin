@@ -1,6 +1,6 @@
 package com.nirima.jenkins.plugins.docker.builder;
 
-import com.nirima.docker.client.DockerException;
+import com.github.dockerjava.api.DockerException;
 import com.nirima.jenkins.plugins.docker.action.DockerLaunchAction;
 import hudson.Extension;
 import hudson.model.AbstractBuild;
@@ -11,9 +11,12 @@ import org.kohsuke.stapler.DataBoundConstructor;
  */
 public class DockerBuilderControlOptionStopAll extends DockerBuilderControlOption {
 
-    @DataBoundConstructor
-    public DockerBuilderControlOptionStopAll() {
+    public final boolean remove;
 
+    @DataBoundConstructor
+    public DockerBuilderControlOptionStopAll(boolean remove) {
+
+        this.remove = remove;
     }
 
     @Override
@@ -22,15 +25,15 @@ public class DockerBuilderControlOptionStopAll extends DockerBuilderControlOptio
         for(DockerLaunchAction.Item containerItem : getLaunchAction(build).getRunning()) {
             try {
                 LOGGER.info("Stopping container " + containerItem.id);
-                containerItem.client.container(containerItem.id).stop();
+                containerItem.client.stopContainerCmd(containerItem.id).exec();
+
+                if( remove )
+                    containerItem.client.removeContainerCmd(containerItem.id).exec();
+
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
-    }
-
-    public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl)super.getDescriptor();
     }
 
     @Extension

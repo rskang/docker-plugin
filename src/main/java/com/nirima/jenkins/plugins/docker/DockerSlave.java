@@ -3,12 +3,14 @@ package com.nirima.jenkins.plugins.docker;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.nirima.docker.client.DockerException;
-import com.nirima.docker.client.DockerClient;
+
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.DockerException;
 import com.nirima.jenkins.plugins.docker.action.DockerBuildAction;
 
 import hudson.Extension;
 import hudson.model.*;
+import hudson.model.queue.CauseOfBlockage;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.NodeProperty;
@@ -67,10 +69,22 @@ public class DockerSlave extends AbstractCloudSlave {
         return new DockerComputer(this);
     }
 
+    @Override
+    public CauseOfBlockage canTake(Queue.BuildableItem item) {
+        if (item.task instanceof Queue.FlyweightTask) {
+          return new CauseOfBlockage() {
+            public String getShortDescription() {
+                return "Don't run FlyweightTask on Docker node";
+            }
+          };
+        }
+        return super.canTake(item);
+    }
+
     public boolean containerExistsInCloud() {
         try {
             DockerClient client = getClient();
-            client.container(containerId).inspect();
+            client.inspectContainerCmd(containerId).exec();
             return true;
         } catch(Exception ex) {
             return false;
@@ -86,7 +100,7 @@ public class DockerSlave extends AbstractCloudSlave {
 
             try {
                 DockerClient client = getClient();
-                client.container(containerId).stop();
+                client.stopContainerCmd(containerId).exec();
             } catch(Exception ex) {
                 LOGGER.log(Level.SEVERE, "Failed to stop instance " + containerId + " for slave " + name + " due to exception", ex);
             }
@@ -102,7 +116,7 @@ public class DockerSlave extends AbstractCloudSlave {
 
             try {
                 DockerClient client = getClient();
-                client.container(containerId).remove();
+                client.removeContainerCmd(containerId).exec();
             } catch(Exception ex) {
                 LOGGER.log(Level.SEVERE, "Failed to remove instance " + containerId + " for slave " + name + " due to exception",ex);
             }
@@ -139,15 +153,15 @@ public class DockerSlave extends AbstractCloudSlave {
         LOGGER.log(Level.INFO, "Going to tag the image locally - REPOSITORY: " + repoName + ". TAG: " + tagName);
         DockerClient client = getClient();
 
-        // Commit
-        String taggedId = client.container(containerId).createCommitCommand()
-                    .repo(repoName)
-                    .tag(tagName)
-                    .author("Jenkins")
-                    .execute();
+         // Commit
+        String tag_image = client.commitCmd(containerId)
+                    .withRepository(theRun.getParent().getDisplayName())
+                    .withTag(theRun.getDisplayName())
+                    .withAuthor("Jenkins")
+                    .exec();
 
         // Tag it with the jenkins name
-        addJenkinsAction(taggedId, taggedName);
+        addJenkinsAction(tag_image, taggedName);
 
         // Should we add additional tags?
         try
@@ -155,11 +169,12 @@ public class DockerSlave extends AbstractCloudSlave {
             String tagToken = getAdditionalTag(listener);
 
             if( !Strings.isNullOrEmpty(tagToken) ) {
-                client.image(taggedId).tag(tagToken, false);
+                // ?? client.image(tag_image).tag(tagToken, false);
+                client.tagImageCmd(tag_image,null,tagToken).exec();
                 addJenkinsAction(tagToken, taggedName);
 
                 if( getJobProperty().pushOnSuccess ) {
-                    client.image(tagToken).push(null);
+                    client.pushImageCmd(tagToken).exec();
                 }
             }
         }
@@ -169,20 +184,9 @@ public class DockerSlave extends AbstractCloudSlave {
 
         if( getJobProperty().cleanImages ) {
 
-            // For some reason, docker delete doesn't delete all tagged
-            // versions, despite force = true.
-            // So, do it multiple times (protect against infinite looping).
-
-            int delete = 100;
-            while(delete != 0 ) {
-                int count = client.image(taggedId).removeCommand()
-                                   .force(true)
-                                   .execute().size();
-                if( count == 0 )
-                    delete = 0;
-                else
-                    delete--;
-            }
+            client.removeImageCmd(tag_image)
+                .withForce()
+                .exec();
         }
 
     }
@@ -209,11 +213,12 @@ public class DockerSlave extends AbstractCloudSlave {
      * @throws IOException
      */
     private void addJenkinsAction(String taggedId, String taggedName) throws IOException {
-        theRun.addAction( new DockerBuildAction(getCloud().serverUrl, 
+        theRun.addAction( new DockerBuildAction(getCloud().serverUrl,
                                                 containerName,
                                                 containerId,
                                                 (taggedName == null ? "Image not tagged" : taggedName),
-                                                (taggedId == null ? "Image not tagged" : taggedId)) );
+                                                (taggedId == null ? "Image not tagged" : taggedId),
+                                                dockerTemplate.remoteFsMapping) );
         theRun.save();
     }
 
@@ -226,12 +231,6 @@ public class DockerSlave extends AbstractCloudSlave {
      */
     public void onConnected() {
 
-    }
-
-
-
-    public void retentionTerminate() throws IOException, InterruptedException {
-        terminate();
     }
 
     @Override

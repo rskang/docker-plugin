@@ -1,7 +1,8 @@
 package com.nirima.jenkins.plugins.docker.builder;
 
 import com.google.common.base.Strings;
-import com.nirima.docker.client.DockerClient;
+
+import com.github.dockerjava.api.DockerClient;
 import com.nirima.jenkins.plugins.docker.DockerCloud;
 import com.nirima.jenkins.plugins.docker.DockerSlave;
 import hudson.model.AbstractBuild;
@@ -43,23 +44,8 @@ public abstract class DockerBuilderControlCloudOption extends DockerBuilderContr
     }
 
     protected DockerClient getClient(AbstractBuild<?, ?> build) {
-        DockerCloud cloud = null;
+        DockerCloud cloud = getCloud(build);
 
-        Node node = build.getBuiltOn();
-        if( node instanceof DockerSlave) {
-            DockerSlave dockerSlave = (DockerSlave)node;
-            cloud = dockerSlave.getCloud();
-        }
-
-        if( !Strings.isNullOrEmpty(cloudName) ) {
-            cloud = (DockerCloud) Jenkins.getInstance().getCloud(cloudName);
-        }
-
-        if( cloud == null ) {
-            throw new RuntimeException("Cannot list cloud for docker action");
-        }
-
-        DockerClient client = cloud.connect();
-        return client;
+        return cloud.connect();
     }
 }

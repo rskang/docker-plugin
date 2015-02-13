@@ -82,14 +82,6 @@ public class DockerSlave extends AbstractCloudSlave {
 
 
         try {
-            toComputer().disconnect(null);
-
-            try {
-                DockerClient client = getClient();
-                client.container(containerId).stop();
-            } catch(Exception ex) {
-                LOGGER.log(Level.SEVERE, "Failed to stop instance " + containerId + " for slave " + name + " due to exception", ex);
-            }
 
             // If the run was OK, then do any tagging here
             if( theRun != null ) {
@@ -98,6 +90,15 @@ public class DockerSlave extends AbstractCloudSlave {
                 } catch (Exception e) {
                     LOGGER.log(Level.SEVERE, "Failure to slaveShutdown instance " + containerId+ " for slave " + name , e);
                 }
+            }
+
+            toComputer().disconnect(null);
+
+            try {
+                DockerClient client = getClient();
+                client.container(containerId).stop();
+            } catch(Exception ex) {
+                LOGGER.log(Level.SEVERE, "Failed to stop instance " + containerId + " for slave " + name + " due to exception", ex);
             }
 
             try {
